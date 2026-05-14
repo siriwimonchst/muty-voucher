@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchAPI } from '@/lib/api';
 import { Voucher } from '@/types';
-import { Plus, LayoutDashboard, Ticket, Trash2, ArrowLeft, CheckCircle2, Pencil, Trash, X, ChevronRight } from 'lucide-react';
+import { Plus, LayoutDashboard, Ticket, Trash2, ArrowLeft, CheckCircle2, Pencil, Trash, X, ChevronRight, Camera, Upload } from 'lucide-react';
+import { getFullImageUrl } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import Toast from '@/components/Toast';
 
@@ -24,10 +25,45 @@ export default function AdminPage() {
     message: '',
     type: 'success'
   });
+  const [now, setNow] = useState(new Date().getTime());
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8080';
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date().getTime()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ show: true, message, type });
+  };
+  
+  const getClaimEndText = (claimEndTime: string) => {
+    const end = new Date(claimEndTime).getTime();
+    const diff = end - now;
+
+    if (diff > 0 && diff < 48 * 60 * 60 * 1000) {
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      return (
+        <span className="text-[var(--brand)] font-bold">
+          สิ้นสุดการแจกในอีก {days > 0 ? `${days} วัน ` : ''}{hours > 0 || days > 0 ? `${hours} ชม.` : `${mins} นาที`}
+        </span>
+      );
+    } else if (diff <= 0) {
+      return 'หมดเวลาแจกแล้ว';
+    }
+    return `สิ้นสุดแจก ${new Date(claimEndTime).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} เวลา ${new Date(claimEndTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.`;
+  };
+
+  const isAdminExpiringSoon = (claimEndTime: string) => {
+    const end = new Date(claimEndTime).getTime();
+    const diff = end - now;
+    return diff > 0 && diff < 48 * 60 * 60 * 1000;
   };
   
   const toLocalISO = (date: Date) => {
@@ -234,7 +270,7 @@ export default function AdminPage() {
                   {/* Image */}
                   <div className="w-[56px] h-[56px] rounded-xl overflow-hidden bg-zinc-100 shrink-0">
                     <img
-                      src={v.image_url || 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=200'}
+                      src={getFullImageUrl(v.image_url) || 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=200'}
                       alt={v.title}
                       className="w-full h-full object-cover"
                     />
@@ -259,8 +295,8 @@ export default function AdminPage() {
                         <span className="text-[11px] text-zinc-500 font-medium">
                           เก็บแล้ว {v.total_quota === -1 ? `${v.claimed_count} / ∞` : `${v.claimed_count}/${v.total_quota}`}
                         </span>
-                        <span className="text-[9px] text-zinc-400">
-                          สิ้นสุดแจก {new Date(v.claim_end_time).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        <span className={`text-[9px] ${isAdminExpiringSoon(v.claim_end_time) ? 'text-[var(--brand)]' : 'text-zinc-400'}`}>
+                           {getClaimEndText(v.claim_end_time)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -338,17 +374,73 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Image URL + Category */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Image Upload + Category */}
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-[12px] font-bold text-zinc-500 mb-1.5">รูปภาพ (URL)</label>
+                  <label className="block text-[12px] font-bold text-zinc-500 mb-1.5">รูปภาพคูปอง</label>
                   <input 
-                    type="text" 
-                    value={newVoucher.image_url}
-                    onChange={(e) => setNewVoucher({...newVoucher, image_url: e.target.value})}
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/30 transition-all text-[14px]" 
-                    placeholder="https://..."
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!file.type.startsWith('image/')) {
+                        showToast('กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'error');
+                        return;
+                      }
+                      if (file.size > 5 * 1024 * 1024) {
+                        showToast('ขนาดรูปภาพต้องไม่เกิน 5MB', 'error');
+                        return;
+                      }
+                      setUploading(true);
+                      const formData = new FormData();
+                      formData.append('image', file);
+                      try {
+                        const response = await fetch(`${API_BASE}/api/auth/upload`, {
+                          method: 'POST',
+                          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                          body: formData
+                        });
+                        if (!response.ok) throw new Error('Failed to upload');
+                        const data = await response.json();
+                        setNewVoucher(prev => ({...prev, image_url: data.url}));
+                        showToast('อัปโหลดรูปภาพสำเร็จ!', 'success');
+                      } catch (err: any) {
+                        showToast(err.message || 'เกิดข้อผิดพลาดในการอัปโหลด', 'error');
+                      } finally {
+                        setUploading(false);
+                      }
+                    }}
+                    accept="image/*"
+                    className="hidden"
                   />
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-[120px] bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[var(--brand)]/30 hover:bg-[var(--brand)]/[0.02] transition-all overflow-hidden relative"
+                  >
+                    {uploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-6 h-6 border-2 border-[var(--brand)] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[11px] text-zinc-400 font-medium">กำลังอัปโหลด...</span>
+                      </div>
+                    ) : newVoucher.image_url ? (
+                      <>
+                        <img 
+                          src={getFullImageUrl(newVoucher.image_url)} 
+                          alt="Preview" 
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Camera className="w-6 h-6 text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 text-zinc-400">
+                        <Upload className="w-6 h-6" />
+                        <span className="text-[11px] font-medium">แตะเพื่อเลือกรูปภาพ</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[12px] font-bold text-zinc-500 mb-1.5">หมวดหมู่</label>

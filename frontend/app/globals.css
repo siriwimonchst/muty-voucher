@@ -179,3 +179,14 @@ body {
 .bg-brand-soft {
   background: linear-gradient(135deg, rgba(218, 25, 132, 0.06) 0%, rgba(244, 114, 182, 0.04) 100%);
 }
+
+/* Hide browser default password reveal icon */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input[type="password"] {
+  padding-right: 48px !important;
+}
+

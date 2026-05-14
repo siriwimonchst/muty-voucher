@@ -29,8 +29,8 @@ export default function HomePage() {
   };
 
   const banners = [
-    "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=1200",
-    "https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=1200"
+    "/assets/banner_muty4.jpg",
+    "/assets/banner_muty5.jpg"
   ];
 
   useEffect(() => {
@@ -176,7 +176,7 @@ export default function HomePage() {
             <Search className="w-[18px] h-[18px] text-zinc-400 mr-3 shrink-0" />
             <input
               type="text"
-              placeholder="ค้นหาแบรนด์เครื่องสำอาง..."
+              placeholder="ค้นหาคูปอง..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), loadVouchers(search))}
@@ -190,12 +190,8 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-extrabold text-zinc-900 tracking-tight leading-tight">คูปองทั้งหมด</h2>
-              <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-[0.15em] mt-0.5">Voucher Collection</p>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand)]/[0.08] text-[var(--brand)] text-[11px] font-bold rounded-full">
-              <Sparkles className="w-3.5 h-3.5" />
-              มาใหม่ {vouchers.length}
-            </div>
+            {/* Removed New badge */}
           </div>
         </div>
 
@@ -214,6 +210,7 @@ export default function HomePage() {
                 voucher={v}
                 onClaim={handleClaim}
                 isClaimed={claimedIds.includes(v.id)}
+                isAdmin={user?.role === 'admin'}
               />
             ))}
           </div>

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types';
-import { LogOut, Settings, ChevronRight, History, Shield, Ticket, Crown } from 'lucide-react';
+import { LogOut, Settings, ChevronRight, History, Shield, Ticket, Crown, Pencil } from 'lucide-react';
+import { getFullImageUrl } from '@/lib/utils';
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -11,13 +12,29 @@ export default function ProfilePage() {
   const router = useRouter();
 
   useEffect(() => {
+    loadUserProfile();
+  }, [router]);
+
+  const loadUserProfile = async () => {
+    // Try to load from localStorage first for immediate UI
     const userData = localStorage.getItem('user');
     if (userData) {
       setUser(JSON.parse(userData));
-    } else {
-      router.push('/login');
     }
-  }, [router]);
+
+    // Then fetch latest from API to ensure consistency
+    try {
+      const { fetchAPI } = await import('@/lib/api');
+      const latestUser = await fetchAPI('/auth/me');
+      setUser(latestUser);
+      localStorage.setItem('user', JSON.stringify(latestUser));
+    } catch (err) {
+      console.error('Failed to sync profile:', err);
+      if (!userData) {
+        router.push('/login');
+      }
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -28,9 +45,7 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const menuItems = [
-    { label: 'ประวัติการใช้งานคูปอง', icon: History, href: '/history' },
-    { label: 'ความปลอดภัยและรหัสผ่าน', icon: Shield, href: '#' },
-    { label: 'ตั้งค่า', icon: Settings, href: '#' },
+    { label: 'การตั้งค่า', icon: Settings, href: '/settings' },
   ];
 
   return (
@@ -47,14 +62,17 @@ export default function ProfilePage() {
             <div className="w-[80px] h-[80px] rounded-full p-[3px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-light)] shadow-[0_4px_20px_rgba(218,25,132,0.25)]">
               <div className="w-full h-full rounded-full overflow-hidden bg-white p-[2px]">
                 <img 
-                  src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.display_name)}&background=DA1984&color=fff&size=160`} 
+                  src={getFullImageUrl(user.profile_picture_url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.display_name)}&background=DA1984&color=fff&size=160`} 
                   alt={user.display_name}
                   className="w-full h-full rounded-full object-cover"
                 />
               </div>
             </div>
-            <button className="absolute -bottom-1 -right-1 p-2 bg-white text-[var(--brand)] rounded-full shadow-md border border-zinc-100 active:scale-90 transition-transform">
-              <Settings className="w-3.5 h-3.5" />
+            <button 
+              onClick={() => router.push('/profile/edit')}
+              className="absolute -bottom-1 -right-1 p-2 bg-white text-[var(--brand)] rounded-full shadow-md border border-zinc-100 active:scale-90 transition-transform"
+            >
+              <Pencil className="w-3.5 h-3.5" />
             </button>
           </div>
           
@@ -62,7 +80,7 @@ export default function ProfilePage() {
           <p className="text-[12px] text-zinc-400 font-medium mt-0.5">{user.phone_number}</p>
 
           <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand)]/[0.08] text-[var(--brand)] text-[10px] font-bold rounded-full border border-[var(--brand)]/10">
-            <Crown className="w-3 h-3" />
+            {user.role === 'admin' && <Crown className="w-3 h-3" />}
             {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'สมาชิกทั่วไป'}
           </div>
         </div>

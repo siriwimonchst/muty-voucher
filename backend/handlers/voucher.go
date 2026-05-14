@@ -152,7 +152,17 @@ func (h *VoucherHandler) ListMyVouchers(c fiber.Ctx) error {
 	}
 	defer cursor.Close(context.Background())
 
-	var results []bson.M = make([]bson.M, 0)
+	type MyVoucherResponse struct {
+		ID             bson.ObjectID  `bson:"_id" json:"id"`
+		UserID         bson.ObjectID  `bson:"user_id" json:"user_id"`
+		VoucherID      bson.ObjectID  `bson:"voucher_id" json:"voucher_id"`
+		Status         string         `bson:"status" json:"status"`
+		ClaimedAt      time.Time      `bson:"claimed_at" json:"claimed_at"`
+		UsedAt         *time.Time     `bson:"used_at,omitempty" json:"used_at,omitempty"`
+		VoucherDetails models.Voucher `bson:"voucher_details" json:"voucher_details"`
+	}
+
+	var results []MyVoucherResponse = make([]MyVoucherResponse, 0)
 	if err := cursor.All(context.Background(), &results); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to decode vouchers"})
 	}

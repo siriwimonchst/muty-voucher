@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Clock, Ticket, Scissors, CheckCircle2, AlertCircle, Search, X } from 'lucide-react';
+import { getFullImageUrl } from '@/lib/utils';
 import { fetchAPI } from '@/lib/api';
 import { UserVoucher } from '@/types';
 import Toast from '@/components/Toast';
@@ -11,6 +12,7 @@ export default function MyVouchersPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'AVAILABLE' | 'USED' | 'EXPIRED'>('AVAILABLE');
   const [search, setSearch] = useState('');
+  const [now, setNow] = useState(new Date().getTime());
 
   const [confirmModal, setConfirmModal] = useState<{show: boolean, voucherId: string | null}>({
     show: false,
@@ -28,7 +30,41 @@ export default function MyVouchersPage() {
 
   useEffect(() => {
     loadMyVouchers();
+    const timer = setInterval(() => setNow(new Date().getTime()), 60000);
+    return () => clearInterval(timer);
   }, []);
+
+  const getExpirationText = (validUntil: string) => {
+    const end = new Date(validUntil).getTime();
+    const diff = end - now;
+
+    if (diff > 0 && diff < 48 * 60 * 60 * 1000) {
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      return (
+        <span className="text-[var(--brand)] font-bold">
+          จะหมดอายุในอีก {days > 0 ? `${days} วัน ` : ''}{hours > 0 || days > 0 ? `${hours} ชม.` : `${mins} นาที`}
+        </span>
+      );
+    }
+    
+    return (
+      <>
+        หมดอายุ {new Date(validUntil).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} 
+        <span className="ml-1 opacity-70">
+          เวลา {new Date(validUntil).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.
+        </span>
+      </>
+    );
+  };
+
+  const isExpiringSoon = (validUntil: string) => {
+    const end = new Date(validUntil).getTime();
+    const diff = end - now;
+    return diff > 0 && diff < 48 * 60 * 60 * 1000;
+  };
 
   const loadMyVouchers = async () => {
     try {
@@ -45,7 +81,7 @@ export default function MyVouchersPage() {
     if (!confirmModal.voucherId) return;
     
     try {
-      await fetchAPI(`/user-vouchers/${confirmModal.voucherId}/use`, { method: 'POST' });
+      await fetchAPI(`/my-vouchers/${confirmModal.voucherId}/use`, { method: 'POST' });
       setConfirmModal({ show: false, voucherId: null });
       showToast('ใช้งานคูปองสำเร็จ!', 'success');
       await loadMyVouchers();
@@ -61,17 +97,26 @@ export default function MyVouchersPage() {
     }
   };
 
+  const getEffectiveStatus = (uv: UserVoucher) => {
+    if (uv.status === 'AVAILABLE') {
+      const validUntil = new Date(uv.voucher_details.valid_until).getTime();
+      if (now > validUntil) return 'EXPIRED';
+    }
+    return uv.status;
+  };
+
   const filteredVouchers = userVouchers.filter(uv => {
-    const matchesStatus = uv.status === filter;
+    const effectiveStatus = getEffectiveStatus(uv);
+    const matchesStatus = effectiveStatus === filter;
     const matchesSearch = uv.voucher_details.title.toLowerCase().includes(search.toLowerCase()) || 
                           uv.voucher_details.shop_name.toLowerCase().includes(search.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
   const tabCounts = {
-    AVAILABLE: userVouchers.filter(v => v.status === 'AVAILABLE').length,
-    USED: userVouchers.filter(v => v.status === 'USED').length,
-    EXPIRED: userVouchers.filter(v => v.status === 'EXPIRED').length,
+    AVAILABLE: userVouchers.filter(uv => getEffectiveStatus(uv) === 'AVAILABLE').length,
+    USED: userVouchers.filter(uv => getEffectiveStatus(uv) === 'USED').length,
+    EXPIRED: userVouchers.filter(uv => getEffectiveStatus(uv) === 'EXPIRED').length,
   };
 
   return (
@@ -80,7 +125,6 @@ export default function MyVouchersPage() {
       <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-zinc-100/50">
         <div className="px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3">
           <h1 className="text-lg font-extrabold text-zinc-900 tracking-tight">คูปองของฉัน</h1>
-          <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-[0.15em]">My Vouchers</p>
         </div>
 
         {/* Tabs */}
@@ -97,11 +141,6 @@ export default function MyVouchersPage() {
                 }`}
               >
                 {status === 'AVAILABLE' ? 'พร้อมใช้' : status === 'USED' ? 'ใช้แล้ว' : 'หมดอายุ'}
-                {tabCounts[status] > 0 && (
-                  <span className={`ml-1 text-[10px] ${filter === status ? 'text-[var(--brand)]' : 'text-zinc-400'}`}>
-                    {tabCounts[status]}
-                  </span>
-                )}
               </button>
             ))}
           </div>
@@ -128,17 +167,17 @@ export default function MyVouchersPage() {
           </div>
         ) : filteredVouchers.length > 0 ? (
           <div className="space-y-3 stagger">
-            {filteredVouchers.map((uv) => (
+            {filteredVouchers.map((uv, index) => (
               <div 
-                key={uv.id} 
-                className={`bg-white rounded-2xl shadow-[0_1px_8px_rgba(0,0,0,0.05)] border border-zinc-100/60 overflow-hidden flex h-[100px] card-interactive w-full relative ${
-                  uv.status !== 'AVAILABLE' ? 'grayscale opacity-60' : ''
+                key={uv.id || (uv as any)._id}
+                className={`flex h-[88px] bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden group transition-all duration-300 animate-scale-in ${
+                  getEffectiveStatus(uv) !== 'AVAILABLE' ? 'grayscale opacity-60' : ''
                 }`}
               >
                 {/* Left: Image Section */}
                 <div className="w-[88px] h-full relative overflow-hidden bg-zinc-100 shrink-0">
                   <img
-                    src={uv.voucher_details.image_url || 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=400'}
+                    src={getFullImageUrl(uv.voucher_details.image_url) || 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=400'}
                     alt={uv.voucher_details.title}
                     className="w-full h-full object-cover"
                   />
@@ -147,18 +186,20 @@ export default function MyVouchersPage() {
                 {/* Middle: Details Section */}
                 <div className="flex-1 px-3 py-2.5 flex flex-col justify-between min-w-0 relative">
                   <div className="space-y-0.5">
-                    <h3 className="font-bold text-zinc-900 text-[13px] line-clamp-1 leading-snug">
+                    <h3 className="font-bold text-zinc-900 text-[13px] line-clamp-2 leading-snug">
                       {uv.voucher_details.title}
                     </h3>
-                    
-                    <p className="text-[11px] text-zinc-500 line-clamp-2 leading-relaxed">
-                      {uv.voucher_details.description}
-                    </p>
                   </div>
 
-                  <div className="flex items-center text-[10px] text-zinc-400 gap-1">
+                  <div className={`flex items-center text-[10px] gap-1 ${isExpiringSoon(uv.voucher_details.valid_until) && uv.status === 'AVAILABLE' ? 'text-[var(--brand)]' : 'text-zinc-400'}`}>
                     <Clock className="w-3 h-3" />
-                    <span className="truncate">หมดอายุ {new Date(uv.voucher_details.valid_until).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</span>
+                    <span className="truncate">
+                      {uv.status === 'USED' && uv.used_at ? (
+                        <>ใช้เมื่อ {new Date(uv.used_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} เวลา {new Date(uv.used_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.</>
+                      ) : (
+                        getExpirationText(uv.voucher_details.valid_until)
+                      )}
+                    </span>
                   </div>
 
                   {/* Dashed Separator */}
@@ -167,20 +208,20 @@ export default function MyVouchersPage() {
 
                 {/* Right: Action Section */}
                 <button
-                  onClick={() => uv.status === 'AVAILABLE' && setConfirmModal({ show: true, voucherId: uv.id })}
-                  disabled={uv.status !== 'AVAILABLE'}
+                  onClick={() => getEffectiveStatus(uv) === 'AVAILABLE' && setConfirmModal({ show: true, voucherId: uv.id || (uv as any)._id })}
+                  disabled={getEffectiveStatus(uv) !== 'AVAILABLE'}
                   className={`w-[58px] flex flex-col items-center justify-center gap-1 transition-all shrink-0 ${
-                    uv.status === 'AVAILABLE'
+                    getEffectiveStatus(uv) === 'AVAILABLE'
                       ? 'bg-gradient-to-b from-[var(--brand)] to-[var(--brand-dark)] text-white active:scale-95 cursor-pointer'
                       : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
                   }`}
                 >
-                  {uv.status === 'AVAILABLE' ? (
+                  {getEffectiveStatus(uv) === 'AVAILABLE' ? (
                     <>
                       <Ticket className="w-5 h-5" />
                       <span className="text-[10px] font-bold leading-none">ใช้</span>
                     </>
-                  ) : uv.status === 'USED' ? (
+                  ) : getEffectiveStatus(uv) === 'USED' ? (
                     <>
                       <CheckCircle2 className="w-5 h-5" />
                       <span className="text-[9px] font-bold leading-none">ใช้แล้ว</span>
