@@ -8,11 +8,11 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-50 max-w-md mx-auto shadow-xl min-w-[320px]">
+    <div className="flex flex-col min-h-screen bg-zinc-50 min-w-[320px]">
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-zinc-100 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold text-brand">
-          Muty Voucher
+          Muty คูปอง
         </h1>
         {/* Removed Notification Bell */}
       </header>

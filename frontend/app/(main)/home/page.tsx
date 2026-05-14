@@ -39,9 +39,9 @@ export default function HomePage() {
       setClaimedIds([...claimedIds, id]);
       // Reload to update counts
       loadVouchers(search);
-      alert('Claimed successfully! Check My Vouchers.');
+      alert('เก็บคูปองสำเร็จ! ไปดูที่หน้า คูปองของฉัน');
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message === 'Voucher already claimed' ? 'คุณเก็บคูปองนี้ไปแล้ว' : err.message);
     }
   };
 
@@ -55,9 +55,9 @@ export default function HomePage() {
           alt="Cosmetic Promo"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6">
-          <span className="text-brand text-xs font-bold uppercase tracking-widest mb-1">Seasonal Sale</span>
+          <span className="text-brand text-xs font-bold uppercase tracking-widest mb-1">โปรโมชั่นประจำฤดูกาล</span>
           <h2 className="text-white text-2xl font-bold">Sparkle & Shine</h2>
-          <p className="text-white/80 text-sm">Up to 50% OFF on all Skincare items</p>
+          <p className="text-white/80 text-sm">ลดสูงสุด 50% สำหรับสินค้าดูแลผิว</p>
         </div>
       </div>
 
@@ -65,7 +65,7 @@ export default function HomePage() {
       <form onSubmit={handleSearch} className="relative">
         <input
           type="text"
-          placeholder="Search cosmetic brands or deals..."
+          placeholder="ค้นหาแบรนด์เครื่องสำอางหรือดีลสุดคุ้ม..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-brand outline-none transition-all shadow-sm"
@@ -76,20 +76,20 @@ export default function HomePage() {
       {/* Vouchers Grid */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-zinc-900">Flash Rewards</h2>
+          <h2 className="text-lg font-bold text-zinc-900">รางวัลพิเศษ</h2>
           <span className="text-xs text-brand font-bold px-2 py-1 bg-brand/10 rounded-lg animate-pulse">
-            Ending Soon!
+            ใกล้หมดเขตแล้ว!
           </span>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-4">
-            {[1, 2, 3].map((i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
               <div key={i} className="h-64 bg-zinc-100 rounded-2xl animate-pulse"></div>
             ))}
           </div>
         ) : vouchers.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
             {vouchers.map((v) => (
               <VoucherCard 
                 key={v.id} 
@@ -101,7 +101,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-zinc-500">No vouchers found matching your search.</p>
+            <p className="text-zinc-500">ไม่พบคูปองที่ตรงกับการค้นหาของคุณ</p>
           </div>
         )}
       </div>

@@ -28,7 +28,7 @@ export default function VoucherCard({ voucher, onClaim, isClaimed }: VoucherCard
         <div className="flex justify-between items-start mb-1">
           <h3 className="font-bold text-zinc-900 line-clamp-1">{voucher.title}</h3>
           <span className="text-brand font-bold text-sm">
-            {voucher.discount_type === 'percent' ? `${voucher.discount_value}% OFF` : `฿${voucher.discount_value} OFF`}
+            {voucher.discount_type === 'percent' ? `ลด ${voucher.discount_value}%` : `ลด ฿${voucher.discount_value}`}
           </span>
         </div>
         <p className="text-xs text-zinc-500 mb-3 line-clamp-2">{voucher.description}</p>
@@ -36,16 +36,16 @@ export default function VoucherCard({ voucher, onClaim, isClaimed }: VoucherCard
         <div className="space-y-2">
           <div className="flex items-center text-[11px] text-zinc-600">
             <Clock className="w-3 h-3 mr-1" />
-            <span>Valid until: {new Date(voucher.valid_until).toLocaleDateString()}</span>
+            <span>ใช้ได้ถึง: {new Date(voucher.valid_until).toLocaleDateString('th-TH')}</span>
           </div>
           
           <div className="flex items-center justify-between text-[11px] text-zinc-600">
             <div className="flex items-center">
               <Users className="w-3 h-3 mr-1" />
-              <span>{voucher.claimed_count}/{voucher.total_quota} claimed</span>
+              <span>เก็บแล้ว {voucher.claimed_count}/{voucher.total_quota} ใบ</span>
             </div>
             <span className={remaining <= 5 ? 'text-red-500 font-bold animate-pulse' : ''}>
-              {remaining} left
+              เหลืออีก {remaining}
             </span>
           </div>
           
@@ -68,7 +68,7 @@ export default function VoucherCard({ voucher, onClaim, isClaimed }: VoucherCard
           }`}
         >
           <Ticket className="w-4 h-4" />
-          {isClaimed ? 'Claimed' : remaining === 0 ? 'Fully Claimed' : 'Claim Now'}
+          {isClaimed ? 'เก็บแล้ว' : remaining === 0 ? 'หมดแล้ว' : 'เก็บคูปอง'}
         </button>
       </div>
     </div>

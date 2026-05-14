@@ -27,11 +27,11 @@ export default function MyVouchersPage() {
   };
 
   const handleUseVoucher = async (id: string) => {
-    if (!confirm('Are you sure you want to use this voucher now at the counter?')) return;
+    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการใช้คูปองนี้ที่เคาน์เตอร์ตอนนี้?')) return;
     
     try {
-      await fetchAPI(`/my-vouchers/${id}/use`, { method: 'POST' });
-      alert('Voucher used successfully! Show this to the staff.');
+      await fetchAPI(`/user-vouchers/${id}/use`, { method: 'POST' });
+      alert('ใช้งานคูปองสำเร็จ!');
       loadMyVouchers();
     } catch (err: any) {
       alert(err.message);
@@ -54,7 +54,7 @@ export default function MyVouchersPage() {
         <div className="relative">
           <input
             type="text"
-            placeholder="Search your vouchers..."
+            placeholder="ค้นหาคูปองของคุณ..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-zinc-200 rounded-xl outline-none focus:ring-2 focus:ring-brand transition-all text-sm"
@@ -72,7 +72,7 @@ export default function MyVouchersPage() {
                 : 'text-zinc-500 hover:text-zinc-700'
             }`}
           >
-            Available
+            พร้อมใช้งาน
           </button>
           <button
             onClick={() => setFilter('USED')}
@@ -82,17 +82,17 @@ export default function MyVouchersPage() {
                 : 'text-zinc-500 hover:text-zinc-700'
             }`}
           >
-            Used
+            ใช้แล้ว
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-2xl animate-pulse"></div>)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-2xl animate-pulse"></div>)}
         </div>
       ) : filteredVouchers.length > 0 ? (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
           {filteredVouchers.map((uv) => (
             <div 
               key={uv.id} 
@@ -126,7 +126,7 @@ export default function MyVouchersPage() {
                       onClick={() => handleUseVoucher(uv.id)}
                       className="px-4 py-1.5 bg-brand hover:bg-brand/90 text-white text-xs font-bold rounded-full transition-all shadow-md shadow-brand/10"
                     >
-                      Use Now
+                      ใช้งานเลย
                     </button>
                   )}
                 </div>
@@ -135,7 +135,7 @@ export default function MyVouchersPage() {
               {/* Status Badge for Used */}
               {uv.status === 'USED' && (
                 <div className="absolute -right-8 top-4 rotate-45 bg-zinc-200 px-10 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                  Used
+                  ใช้แล้ว
                 </div>
               )}
             </div>
@@ -146,12 +146,12 @@ export default function MyVouchersPage() {
           <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
             <Ticket className="w-8 h-8 text-zinc-300" />
           </div>
-          <p className="text-zinc-500">You don't have any {filter.toLowerCase()} vouchers.</p>
+          <p className="text-zinc-500">คุณยังไม่มีคูปองที่ {filter === 'AVAILABLE' ? 'พร้อมใช้งาน' : 'ใช้แล้ว'}</p>
           <button 
             onClick={() => window.location.href = '/home'}
             className="mt-4 text-brand font-bold text-sm"
           >
-            Go claim some!
+            ไปเก็บคูปองกันเลย!
           </button>
         </div>
       )}

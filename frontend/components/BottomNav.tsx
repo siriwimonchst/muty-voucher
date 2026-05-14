@@ -8,14 +8,14 @@ const BottomNav = () => {
   const pathname = usePathname();
 
   const navItems = [
-    { label: 'Home', href: '/home', icon: Home },
-    { label: 'My Voucher', href: '/my-vouchers', icon: Ticket },
-    { label: 'Profile', href: '/profile', icon: User },
+    { label: 'หน้าหลัก', href: '/home', icon: Home },
+    { label: 'คูปองของฉัน', href: '/my-vouchers', icon: Ticket },
+    { label: 'โปรไฟล์', href: '/profile', icon: User },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-200">
-      <div className="max-w-md mx-auto flex items-center justify-around h-16">
+      <div className="max-w-4xl mx-auto flex items-center justify-around h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;

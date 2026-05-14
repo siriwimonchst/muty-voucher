@@ -27,9 +27,9 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const menuItems = [
-    { label: 'Voucher History', icon: History, href: '/history' },
-    { label: 'Security & Password', icon: Shield, href: '#' },
-    { label: 'Settings', icon: Settings, href: '#' },
+    { label: 'ประวัติการใช้งานคูปอง', icon: History, href: '/history' },
+    { label: 'ความปลอดภัยและรหัสผ่าน', icon: Shield, href: '#' },
+    { label: 'ตั้งค่า', icon: Settings, href: '#' },
   ];
 
   return (
@@ -51,7 +51,7 @@ export default function ProfilePage() {
           <h2 className="text-xl font-bold text-zinc-900">{user.display_name}</h2>
           <p className="text-sm text-zinc-500">{user.phone_number}</p>
           <span className="mt-2 px-3 py-1 bg-brand/10 text-brand text-[10px] font-bold rounded-full uppercase tracking-wider">
-            {user.role} Member
+            สมาชิกระดับ {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ทั่วไป'}
           </span>
         </div>
 
@@ -85,7 +85,7 @@ export default function ProfilePage() {
         className="w-full flex items-center justify-center gap-2 p-4 bg-red-50 text-red-600 font-bold rounded-2xl hover:bg-red-100 transition-all"
       >
         <LogOut className="w-5 h-5" />
-        Sign Out
+        ออกจากระบบ
       </button>
     </div>
   );

@@ -37,10 +37,10 @@ export default function LoginPage() {
         });
         setIsLogin(true);
         setPassword(''); // Clear password for security
-        setSuccess('Registered successfully! Please sign in.');
+        setSuccess('สมัครสมาชิกสำเร็จแล้ว! กรุณาเข้าสู่ระบบ');
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message === 'Invalid credentials' ? 'เบอร์โทรศัพท์หรือรหัสผ่านไม่ถูกต้อง' : err.message);
     } finally {
       setLoading(false);
     }
@@ -48,51 +48,51 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col min-h-screen items-center justify-center bg-zinc-50 p-6">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden p-8 border border-zinc-100">
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden p-8 border border-zinc-100">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 bg-brand rounded-2xl flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg shadow-brand/20">
             M
           </div>
           <h2 className="text-2xl font-bold text-zinc-900">
-            {isLogin ? 'Welcome Back!' : 'Create Account'}
+            {isLogin ? 'ยินดีต้อนรับ!' : 'สร้างบัญชีใหม่'}
           </h2>
           <p className="text-zinc-500 mt-1">
-            {isLogin ? 'Sign in to access your vouchers' : 'Join us for exclusive beauty deals'}
+            {isLogin ? 'เข้าสู่ระบบเพื่อใช้งานคูปองของคุณ' : 'เข้าร่วมกับเราเพื่อรับดีลความงามสุดพิเศษ'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
+            {!isLogin && (
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Display Name</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">ชื่อที่แสดง</label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-brand focus:border-transparent outline-none transition-all"
-                placeholder="Your Name"
+                placeholder="ชื่อของคุณ"
                 required={!isLogin}
               />
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Phone Number</label>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">เบอร์โทรศัพท์</label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent outline-none transition-all"
-              placeholder="0812345678"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-brand focus:border-transparent outline-none transition-all"
+              placeholder="08xxxxxxxx"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">รหัสผ่าน</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent outline-none transition-all"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-brand focus:border-transparent outline-none transition-all"
               placeholder="••••••••"
               required
             />
@@ -106,7 +106,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-brand hover:bg-brand/90 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand/30 transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:scale-100 mt-6"
           >
-            {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
+            {loading ? 'กำลังดำเนินการ...' : isLogin ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
           </button>
         </form>
 
@@ -115,7 +115,7 @@ export default function LoginPage() {
             onClick={() => setIsLogin(!isLogin)}
             className="text-sm text-zinc-600 hover:text-brand font-medium transition-colors"
           >
-            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+            {isLogin ? "ยังไม่มีบัญชี? สมัครสมาชิก" : "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ"}
           </button>
         </div>
       </div>

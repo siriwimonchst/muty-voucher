@@ -66,15 +66,15 @@ export default function AdminPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Admin Control</h1>
-            <p className="text-zinc-500 text-sm">Manage your cosmetic shop vouchers</p>
+            <h1 className="text-2xl font-bold">ควบคุมระบบ (Admin)</h1>
+            <p className="text-zinc-500 text-sm">จัดการคูปองสำหรับร้านเครื่องสำอาง</p>
           </div>
           <button 
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-brand/20 hover:bg-brand/90 transition-all"
           >
             <Plus className="w-5 h-5" />
-            Create New
+            สร้างคูปองใหม่
           </button>
         </div>
 
@@ -82,17 +82,17 @@ export default function AdminPage() {
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-100">
             <LayoutDashboard className="w-5 h-5 text-blue-500 mb-2" />
-            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Total Campaigns</p>
+            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">แคมเปญทั้งหมด</p>
             <p className="text-2xl font-bold">{stats?.total_vouchers || 0}</p>
           </div>
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-100">
             <Ticket className="w-5 h-5 text-brand mb-2" />
-            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Total Claims</p>
+            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">จำนวนที่เก็บ</p>
             <p className="text-2xl font-bold">{stats?.total_claims || 0}</p>
           </div>
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-100">
             <Plus className="w-5 h-5 text-green-500 mb-2" />
-            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">Total Redeemed</p>
+            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider">จำนวนที่ใช้</p>
             <p className="text-2xl font-bold">{stats?.total_redeems || 0}</p>
           </div>
         </div>
@@ -102,11 +102,11 @@ export default function AdminPage() {
           <table className="w-full text-left">
             <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase font-bold">
               <tr>
-                <th className="px-6 py-4">Voucher Title</th>
-                <th className="px-6 py-4">Shop</th>
-                <th className="px-6 py-4">Claimed</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Actions</th>
+                <th className="px-6 py-4">ชื่อคูปอง</th>
+                <th className="px-6 py-4">ร้าน</th>
+                <th className="px-6 py-4">เก็บแล้ว</th>
+                <th className="px-6 py-4">สถานะ</th>
+                <th className="px-6 py-4">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -122,7 +122,7 @@ export default function AdminPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${v.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {v.is_active ? 'ACTIVE' : 'INACTIVE'}
+                      {v.is_active ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -140,11 +140,11 @@ export default function AdminPage() {
       {/* Modal - Simplistic */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6 dark:text-white">Create New Voucher</h2>
+          <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6">สร้างคูปองใหม่</h2>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Title</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">ชื่อคูปอง</label>
                 <input 
                   type="text" 
                   value={newVoucher.title}
@@ -155,7 +155,7 @@ export default function AdminPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Quota</label>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">จำนวนคูปอง (โควต้า)</label>
                   <input 
                     type="number" 
                     value={newVoucher.total_quota}
@@ -165,20 +165,20 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">หมวดหมู่</label>
                   <select 
                     value={newVoucher.category}
                     onChange={(e) => setNewVoucher({...newVoucher, category: e.target.value})}
-                    className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-fuchsia-500"
+                    className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-brand"
                   >
-                    <option>Skincare</option>
-                    <option>Makeup</option>
-                    <option>Fragrance</option>
+                    <option value="Skincare">ดูแลผิว (Skincare)</option>
+                    <option value="Makeup">แต่งหน้า (Makeup)</option>
+                    <option value="Fragrance">น้ำหอม (Fragrance)</option>
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Valid Until</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">ใช้ได้จนถึงวันที่</label>
                 <input 
                   type="datetime-local" 
                   onChange={(e) => setNewVoucher({...newVoucher, valid_until: new Date(e.target.value).toISOString()})}
@@ -187,8 +187,8 @@ export default function AdminPage() {
                 />
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-zinc-500 font-bold hover:bg-zinc-50 rounded-xl transition-all">Cancel</button>
-                <button type="submit" className="flex-1 py-3 bg-brand text-white font-bold rounded-xl shadow-lg shadow-brand/20 hover:bg-brand/90 transition-all">Save Campaign</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-zinc-500 font-bold hover:bg-zinc-50 rounded-xl transition-all">ยกเลิก</button>
+                <button type="submit" className="flex-1 py-3 bg-brand text-white font-bold rounded-xl shadow-lg shadow-brand/20 hover:bg-brand/90 transition-all">บันทึกแคมเปญ</button>
               </div>
             </form>
           </div>
