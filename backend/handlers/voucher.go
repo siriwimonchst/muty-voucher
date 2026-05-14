@@ -19,20 +19,32 @@ func (h *VoucherHandler) ListAvailableVouchers(c fiber.Ctx) error {
 	collection := database.GetCollection("vouchers")
 	now := time.Now()
 
-	// Filter: Active, within claim time, and has quota
 	filter := bson.M{
 		"is_active":        true,
 		"claim_start_time": bson.M{"$lte": now},
 		"claim_end_time":   bson.M{"$gte": now},
-		"$expr":            bson.M{"$lt": []interface{}{"$claimed_count", "$total_quota"}},
 	}
 
+	// Conditions list for $and
+	var conditions []bson.M
+
+	// 1. Quota condition
+	conditions = append(conditions, bson.M{"$or": []bson.M{
+		{"total_quota": -1}, // Unlimited
+		{"$expr": bson.M{"$lt": []interface{}{"$claimed_count", "$total_quota"}}},
+	}})
+
+	// 2. Search condition
 	search := c.Query("search")
 	if search != "" {
-		filter["$or"] = []bson.M{
+		conditions = append(conditions, bson.M{"$or": []bson.M{
 			{"title": bson.M{"$regex": search, "$options": "i"}},
 			{"shop_name": bson.M{"$regex": search, "$options": "i"}},
-		}
+		}})
+	}
+
+	if len(conditions) > 0 {
+		filter["$and"] = conditions
 	}
 
 	cursor, err := collection.Find(context.Background(), filter)
@@ -79,7 +91,10 @@ func (h *VoucherHandler) ClaimVoucher(c fiber.Ctx) error {
 		"is_active":        true,
 		"claim_start_time": bson.M{"$lte": now},
 		"claim_end_time":   bson.M{"$gte": now},
-		"$expr":            bson.M{"$lt": []interface{}{"$claimed_count", "$total_quota"}},
+		"$or": []bson.M{
+			{"total_quota": -1}, // Unlimited
+			{"$expr": bson.M{"$lt": []interface{}{"$claimed_count", "$total_quota"}}},
+		},
 	}
 	update := bson.M{"$inc": bson.M{"claimed_count": 1}}
 	

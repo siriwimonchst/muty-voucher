@@ -27,6 +27,9 @@ func SetupRoutes(app *fiber.App, cfg *config.Config) {
 	// Protected routes
 	protected := api.Group("/", middleware.AuthMiddleware(cfg))
 
+	// Auth profile
+	protected.Get("/auth/me", authHandler.GetMe)
+
 	// User Voucher routes
 	protected.Post("/vouchers/:id/claim", voucherHandler.ClaimVoucher)
 	protected.Get("/my-vouchers", voucherHandler.ListMyVouchers)
@@ -36,5 +39,7 @@ func SetupRoutes(app *fiber.App, cfg *config.Config) {
 	admin := protected.Group("/admin", middleware.AdminMiddleware())
 	admin.Post("/vouchers", adminHandler.CreateVoucher)
 	admin.Get("/vouchers", adminHandler.ListAllVouchers)
+	admin.Put("/vouchers/:id", adminHandler.UpdateVoucher)
+	admin.Delete("/vouchers/:id", adminHandler.DeleteVoucher)
 	admin.Get("/dashboard", adminHandler.GetStats)
 }

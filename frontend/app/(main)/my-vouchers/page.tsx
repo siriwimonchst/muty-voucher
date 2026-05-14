@@ -1,15 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Clock, Ticket, Scissors, CheckCircle2, AlertCircle, Search, X } from 'lucide-react';
 import { fetchAPI } from '@/lib/api';
 import { UserVoucher } from '@/types';
-import { Search, Tag, Calendar, CheckCircle2, Ticket } from 'lucide-react';
+import Toast from '@/components/Toast';
 
 export default function MyVouchersPage() {
   const [userVouchers, setUserVouchers] = useState<UserVoucher[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'AVAILABLE' | 'USED'>('AVAILABLE');
+  const [filter, setFilter] = useState<'AVAILABLE' | 'USED' | 'EXPIRED'>('AVAILABLE');
   const [search, setSearch] = useState('');
+
+  const [confirmModal, setConfirmModal] = useState<{show: boolean, voucherId: string | null}>({
+    show: false,
+    voucherId: null
+  });
+  const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error'}>({
+    show: false,
+    message: '',
+    type: 'success'
+  });
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     loadMyVouchers();
@@ -26,15 +41,23 @@ export default function MyVouchersPage() {
     }
   };
 
-  const handleUseVoucher = async (id: string) => {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการใช้คูปองนี้ที่เคาน์เตอร์ตอนนี้?')) return;
+  const handleUseVoucher = async () => {
+    if (!confirmModal.voucherId) return;
     
     try {
-      await fetchAPI(`/user-vouchers/${id}/use`, { method: 'POST' });
-      alert('ใช้งานคูปองสำเร็จ!');
-      loadMyVouchers();
+      await fetchAPI(`/user-vouchers/${confirmModal.voucherId}/use`, { method: 'POST' });
+      setConfirmModal({ show: false, voucherId: null });
+      showToast('ใช้งานคูปองสำเร็จ!', 'success');
+      await loadMyVouchers();
+      setFilter('USED');
     } catch (err: any) {
-      alert(err.message);
+      const errorMap: { [key: string]: string } = {
+        'Voucher already used': 'คูปองนี้ถูกใช้งานไปแล้ว',
+        'Voucher expired': 'คูปองนี้หมดอายุแล้ว',
+        'User voucher not found': 'ไม่พบข้อมูลคูปองของคุณ',
+        'Failed to use voucher': 'เกิดข้อผิดพลาดในการใช้งานคูปอง'
+      };
+      showToast(errorMap[err.message] || err.message, 'error');
     }
   };
 
@@ -45,11 +68,48 @@ export default function MyVouchersPage() {
     return matchesStatus && matchesSearch;
   });
 
+  const tabCounts = {
+    AVAILABLE: userVouchers.filter(v => v.status === 'AVAILABLE').length,
+    USED: userVouchers.filter(v => v.status === 'USED').length,
+    EXPIRED: userVouchers.filter(v => v.status === 'EXPIRED').length,
+  };
+
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex flex-col space-y-4">
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">My Wallet</h2>
-        
+    <div className="min-h-[100dvh]">
+      {/* Header */}
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-zinc-100/50">
+        <div className="px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3">
+          <h1 className="text-lg font-extrabold text-zinc-900 tracking-tight">คูปองของฉัน</h1>
+          <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-[0.15em]">My Vouchers</p>
+        </div>
+
+        {/* Tabs */}
+        <div className="px-4 pb-3">
+          <div className="flex p-1 bg-zinc-100/80 rounded-xl gap-1">
+            {(['AVAILABLE', 'USED', 'EXPIRED'] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`flex-1 py-2 text-[12px] font-bold rounded-lg transition-all duration-200 ${
+                  filter === status 
+                    ? 'bg-white text-[var(--brand)] shadow-sm' 
+                    : 'text-zinc-500 active:bg-white/50'
+                }`}
+              >
+                {status === 'AVAILABLE' ? 'พร้อมใช้' : status === 'USED' ? 'ใช้แล้ว' : 'หมดอายุ'}
+                {tabCounts[status] > 0 && (
+                  <span className={`ml-1 text-[10px] ${filter === status ? 'text-[var(--brand)]' : 'text-zinc-400'}`}>
+                    {tabCounts[status]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 py-4 space-y-3">
         {/* Search */}
         <div className="relative">
           <input
@@ -57,104 +117,140 @@ export default function MyVouchersPage() {
             placeholder="ค้นหาคูปองของคุณ..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-zinc-200 rounded-xl outline-none focus:ring-2 focus:ring-brand transition-all text-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-zinc-100 rounded-xl focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/30 outline-none transition-all shadow-[0_1px_4px_rgba(0,0,0,0.04)] text-[13px]"
           />
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
         </div>
 
-        {/* Tabs */}
-        <div className="flex p-1 bg-zinc-100 rounded-xl">
-          <button
-            onClick={() => setFilter('AVAILABLE')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
-              filter === 'AVAILABLE' 
-                ? 'bg-white text-brand shadow-sm' 
-                : 'text-zinc-500 hover:text-zinc-700'
-            }`}
-          >
-            พร้อมใช้งาน
-          </button>
-          <button
-            onClick={() => setFilter('USED')}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
-              filter === 'USED' 
-                ? 'bg-white text-brand shadow-sm' 
-                : 'text-zinc-500 hover:text-zinc-700'
-            }`}
-          >
-            ใช้แล้ว
-          </button>
-        </div>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-[100px] rounded-2xl skeleton" />)}
+          </div>
+        ) : filteredVouchers.length > 0 ? (
+          <div className="space-y-3 stagger">
+            {filteredVouchers.map((uv) => (
+              <div 
+                key={uv.id} 
+                className={`bg-white rounded-2xl shadow-[0_1px_8px_rgba(0,0,0,0.05)] border border-zinc-100/60 overflow-hidden flex h-[100px] card-interactive w-full relative ${
+                  uv.status !== 'AVAILABLE' ? 'grayscale opacity-60' : ''
+                }`}
+              >
+                {/* Left: Image Section */}
+                <div className="w-[88px] h-full relative overflow-hidden bg-zinc-100 shrink-0">
+                  <img
+                    src={uv.voucher_details.image_url || 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=400'}
+                    alt={uv.voucher_details.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                {/* Middle: Details Section */}
+                <div className="flex-1 px-3 py-2.5 flex flex-col justify-between min-w-0 relative">
+                  <div className="space-y-0.5">
+                    <h3 className="font-bold text-zinc-900 text-[13px] line-clamp-1 leading-snug">
+                      {uv.voucher_details.title}
+                    </h3>
+                    
+                    <p className="text-[11px] text-zinc-500 line-clamp-2 leading-relaxed">
+                      {uv.voucher_details.description}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center text-[10px] text-zinc-400 gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span className="truncate">หมดอายุ {new Date(uv.voucher_details.valid_until).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</span>
+                  </div>
+
+                  {/* Dashed Separator */}
+                  <div className="absolute -right-[1px] top-3 bottom-3 w-[1px] border-r-2 border-dashed border-zinc-200/80" />
+                </div>
+
+                {/* Right: Action Section */}
+                <button
+                  onClick={() => uv.status === 'AVAILABLE' && setConfirmModal({ show: true, voucherId: uv.id })}
+                  disabled={uv.status !== 'AVAILABLE'}
+                  className={`w-[58px] flex flex-col items-center justify-center gap-1 transition-all shrink-0 ${
+                    uv.status === 'AVAILABLE'
+                      ? 'bg-gradient-to-b from-[var(--brand)] to-[var(--brand-dark)] text-white active:scale-95 cursor-pointer'
+                      : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                  }`}
+                >
+                  {uv.status === 'AVAILABLE' ? (
+                    <>
+                      <Ticket className="w-5 h-5" />
+                      <span className="text-[10px] font-bold leading-none">ใช้</span>
+                    </>
+                  ) : uv.status === 'USED' ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span className="text-[9px] font-bold leading-none">ใช้แล้ว</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-5 h-5" />
+                      <span className="text-[9px] font-bold leading-none">หมดอายุ</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 animate-fade-in">
+            <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-float">
+              <Ticket className="w-8 h-8 text-zinc-300" />
+            </div>
+            <h3 className="font-bold text-zinc-900 text-[15px] mb-1">ยังไม่มีคูปอง</h3>
+            <p className="text-zinc-400 text-[13px] mb-6">คุณยังไม่มีคูปองที่ {filter === 'AVAILABLE' ? 'พร้อมใช้งาน' : filter === 'USED' ? 'ใช้แล้ว' : 'หมดอายุ'}</p>
+            <button 
+              onClick={() => window.location.href = '/home'}
+              className="px-6 py-3 bg-gradient-to-r from-[var(--brand)] to-[var(--brand-dark)] text-white font-bold text-[13px] rounded-xl shadow-[0_4px_16px_rgba(218,25,132,0.3)] active:scale-95 transition-transform"
+            >
+              ไปเก็บคูปองกันเลย!
+            </button>
+          </div>
+        )}
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-2xl animate-pulse"></div>)}
-        </div>
-      ) : filteredVouchers.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
-          {filteredVouchers.map((uv) => (
-            <div 
-              key={uv.id} 
-              className={`relative overflow-hidden bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 flex ${
-                uv.status === 'USED' ? 'grayscale opacity-70' : ''
-              }`}
-            >
-              {/* Left Decoration */}
-              <div className={`w-3 ${uv.status === 'AVAILABLE' ? 'bg-brand' : 'bg-zinc-300'}`}></div>
-              
-              <div className="p-4 flex-1 flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-bold text-zinc-900">{uv.voucher_details.title}</h3>
-                    {uv.status === 'USED' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                  </div>
-                  <div className="flex items-center text-xs text-zinc-500 mb-2">
-                    <Tag className="w-3 h-3 mr-1" />
-                    <span>{uv.voucher_details.shop_name}</span>
-                  </div>
-                </div>
+      {/* Custom Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setConfirmModal({ show: false, voucherId: null })}>
+          <div className="bg-white rounded-t-[28px] w-full max-w-[480px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+            {/* Handle bar */}
+            <div className="w-10 h-1 bg-zinc-200 rounded-full mx-auto mb-6" />
 
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center text-[10px] text-zinc-500 font-medium">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    <span>Expires: {new Date(uv.voucher_details.valid_until).toLocaleDateString()}</span>
-                  </div>
-                  
-                  {uv.status === 'AVAILABLE' && (
-                    <button
-                      onClick={() => handleUseVoucher(uv.id)}
-                      className="px-4 py-1.5 bg-brand hover:bg-brand/90 text-white text-xs font-bold rounded-full transition-all shadow-md shadow-brand/10"
-                    >
-                      ใช้งานเลย
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Status Badge for Used */}
-              {uv.status === 'USED' && (
-                <div className="absolute -right-8 top-4 rotate-45 bg-zinc-200 px-10 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                  ใช้แล้ว
-                </div>
-              )}
+            <div className="w-16 h-16 bg-[var(--brand)]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Ticket className="w-8 h-8 text-[var(--brand)]" />
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-20">
-          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Ticket className="w-8 h-8 text-zinc-300" />
+            <h3 className="text-lg font-extrabold text-center text-zinc-900 mb-1">ยืนยันการใช้คูปอง</h3>
+            <p className="text-zinc-500 text-center text-[13px] leading-relaxed mb-6">
+              คุณแน่ใจหรือไม่ว่าต้องการใช้คูปองนี้? <br/>
+              <span className="text-[var(--brand)] font-bold text-[11px]">เมื่อกดแล้วจะไม่สามารถยกเลิกได้</span>
+            </p>
+            <div className="flex flex-col gap-2.5">
+              <button
+                onClick={handleUseVoucher}
+                className="w-full py-3.5 bg-gradient-to-r from-[var(--brand)] to-[var(--brand-dark)] text-white font-bold text-[14px] rounded-xl shadow-[0_4px_16px_rgba(218,25,132,0.3)] active:scale-[0.98] transition-transform"
+              >
+                ยืนยันการใช้งาน
+              </button>
+              <button
+                onClick={() => setConfirmModal({ show: false, voucherId: null })}
+                className="w-full py-3.5 bg-zinc-100 text-zinc-500 font-bold text-[14px] rounded-xl active:bg-zinc-200 transition-colors"
+              >
+                ยกเลิก
+              </button>
+            </div>
           </div>
-          <p className="text-zinc-500">คุณยังไม่มีคูปองที่ {filter === 'AVAILABLE' ? 'พร้อมใช้งาน' : 'ใช้แล้ว'}</p>
-          <button 
-            onClick={() => window.location.href = '/home'}
-            className="mt-4 text-brand font-bold text-sm"
-          >
-            ไปเก็บคูปองกันเลย!
-          </button>
         </div>
       )}
+
+      <Toast 
+        show={toast.show} 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={() => setToast(prev => ({ ...prev, show: false }))} 
+      />
     </div>
   );
 }

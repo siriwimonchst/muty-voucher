@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
 import { Voucher } from '@/types';
 import VoucherCard from '@/components/VoucherCard';
-import { Search } from 'lucide-react';
+import { Search, Plus, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Toast from '@/components/Toast';
 
 export default function HomePage() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
@@ -12,10 +14,77 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [claimedIds, setClaimedIds] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const [dragStart, setDragStart] = useState(0);
+  const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error'}>({
+    show: false,
+    message: '',
+    type: 'success'
+  });
+  const router = useRouter();
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  const banners = [
+    "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=1200",
+    "https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=1200"
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentBanner((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const posX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setDragStart(posX);
+  };
+
+  const handleDragEnd = (e: React.MouseEvent | React.TouchEvent) => {
+    const posX = 'changedTouches' in e ? e.changedTouches[0].clientX : e.clientX;
+    const diff = dragStart - posX;
+
+    if (diff > 50) {
+      setCurrentBanner((prev) => (prev + 1) % banners.length);
+    } else if (diff < -50) {
+      setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
+    }
+  };
 
   useEffect(() => {
     loadVouchers();
+    loadUserProfile();
+    loadClaimedVouchers();
   }, []);
+
+  const loadClaimedVouchers = async () => {
+    try {
+      const data = await fetchAPI('/my-vouchers');
+      // Extract voucher IDs from user vouchers
+      const ids = data.map((uv: any) => uv.voucher_id);
+      setClaimedIds(ids);
+    } catch (err) {
+      console.error('Failed to load claimed vouchers:', err);
+    }
+  };
+
+  const loadUserProfile = async () => {
+    try {
+      const userData = await fetchAPI('/auth/me');
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (err) {
+      // Fallback to local storage if API fails
+      const localUser = localStorage.getItem('user');
+      if (localUser) setUser(JSON.parse(localUser));
+    }
+  };
+
 
   const loadVouchers = async (searchQuery = '') => {
     try {
@@ -39,72 +108,137 @@ export default function HomePage() {
       setClaimedIds([...claimedIds, id]);
       // Reload to update counts
       loadVouchers(search);
-      alert('เก็บคูปองสำเร็จ! ไปดูที่หน้า คูปองของฉัน');
+      showToast('เก็บคูปองสำเร็จ! ไปดูที่หน้า คูปองของฉัน', 'success');
     } catch (err: any) {
-      alert(err.message === 'Voucher already claimed' ? 'คุณเก็บคูปองนี้ไปแล้ว' : err.message);
+      const errorMap: { [key: string]: string } = {
+        'Voucher already claimed': 'คุณเก็บคูปองนี้ไปแล้ว',
+        'Voucher quota exceeded': 'คูปองนี้ถูกเก็บจนครบโควตาแล้ว',
+        'Voucher expired': 'คูปองนี้หมดอายุแล้ว',
+        'Failed to claim voucher': 'เกิดข้อผิดพลาดในการเก็บคูปอง'
+      };
+      showToast(errorMap[err.message] || err.message, 'error');
     }
   };
 
   return (
-    <div className="p-4 space-y-6">
-      {/* Banner / Ad Area */}
-      <div className="relative h-40 rounded-3xl overflow-hidden shadow-lg group">
-        <img 
-          src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=600" 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-          alt="Cosmetic Promo"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6">
-          <span className="text-brand text-xs font-bold uppercase tracking-widest mb-1">โปรโมชั่นประจำฤดูกาล</span>
-          <h2 className="text-white text-2xl font-bold">Sparkle & Shine</h2>
-          <p className="text-white/80 text-sm">ลดสูงสุด 50% สำหรับสินค้าดูแลผิว</p>
+    <div className="min-h-[100dvh] overflow-x-hidden">
+
+      {/* Hero Banner Section */}
+      <div className="relative animate-fade-in">
+        <div
+          className="relative overflow-hidden aspect-[16/9]"
+          onMouseDown={handleDragStart}
+          onMouseUp={handleDragEnd}
+          onTouchStart={handleDragStart}
+          onTouchEnd={handleDragEnd}
+        >
+          <div
+            className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] h-full"
+            style={{ transform: `translateX(-${currentBanner * 100}%)` }}
+          >
+            {banners.map((banner, index) => (
+              <div key={index} className="min-w-full h-full relative">
+                <img
+                  src={banner}
+                  alt={`Banner ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Gradient overlay at bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--background)] to-transparent" />
+
+          {/* Pagination Dots */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {banners.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentBanner(i)}
+                className={`h-[5px] rounded-full transition-all duration-400 ${
+                  currentBanner === i
+                    ? 'w-7 bg-[var(--brand)] shadow-[0_0_8px_rgba(218,25,132,0.5)]'
+                    : 'w-[5px] bg-zinc-300'
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Search Bar */}
-      <form onSubmit={handleSearch} className="relative">
-        <input
-          type="text"
-          placeholder="ค้นหาแบรนด์เครื่องสำอางหรือดีลสุดคุ้ม..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-brand outline-none transition-all shadow-sm"
-        />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-      </form>
+      {/* Content Section */}
+      <div className="px-4 space-y-5 -mt-2">
 
-      {/* Vouchers Grid */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-zinc-900">รางวัลพิเศษ</h2>
-          <span className="text-xs text-brand font-bold px-2 py-1 bg-brand/10 rounded-lg animate-pulse">
-            ใกล้หมดเขตแล้ว!
-          </span>
+        {/* Search Bar */}
+        <div className="relative animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+          <div className="relative flex items-center bg-white rounded-2xl px-4 py-3 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-zinc-100/80 transition-all focus-within:shadow-[0_2px_20px_rgba(218,25,132,0.1)] focus-within:border-[var(--brand)]/20">
+            <Search className="w-[18px] h-[18px] text-zinc-400 mr-3 shrink-0" />
+            <input
+              type="text"
+              placeholder="ค้นหาแบรนด์เครื่องสำอาง..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), loadVouchers(search))}
+              className="w-full bg-transparent outline-none text-zinc-900 text-[14px] placeholder:text-zinc-400 font-medium"
+            />
+          </div>
         </div>
 
+        {/* Section Header */}
+        <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-extrabold text-zinc-900 tracking-tight leading-tight">คูปองทั้งหมด</h2>
+              <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-[0.15em] mt-0.5">Voucher Collection</p>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand)]/[0.08] text-[var(--brand)] text-[11px] font-bold rounded-full">
+              <Sparkles className="w-3.5 h-3.5" />
+              มาใหม่ {vouchers.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Voucher List */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
-              <div key={i} className="h-64 bg-zinc-100 rounded-2xl animate-pulse"></div>
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-[100px] rounded-2xl skeleton" />
             ))}
           </div>
-        ) : vouchers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4">
+        ) : (
+          <div className="space-y-3 stagger">
             {vouchers.map((v) => (
-              <VoucherCard 
-                key={v.id} 
-                voucher={v} 
-                onClaim={handleClaim} 
+              <VoucherCard
+                key={v.id}
+                voucher={v}
+                onClaim={handleClaim}
                 isClaimed={claimedIds.includes(v.id)}
               />
             ))}
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-zinc-500">ไม่พบคูปองที่ตรงกับการค้นหาของคุณ</p>
-          </div>
         )}
       </div>
+
+      {/* Admin Floating Action Button */}
+      {user?.role === 'admin' && (
+        <div className="fixed bottom-[calc(var(--nav-height)+16px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-full max-w-[480px] pointer-events-none z-[90] px-5 flex justify-end">
+          <button
+            onClick={() => router.push('/admin')}
+            className="w-14 h-14 bg-brand-gradient text-white rounded-2xl shadow-[0_4px_20px_rgba(218,25,132,0.4)] flex items-center justify-center active:scale-90 transition-all pointer-events-auto"
+            title="จัดการคูปอง"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
+      <Toast 
+        show={toast.show} 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={() => setToast(prev => ({ ...prev, show: false }))} 
+      />
     </div>
   );
 }

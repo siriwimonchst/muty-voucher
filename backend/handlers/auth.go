@@ -37,6 +37,10 @@ func (h *AuthHandler) Register(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Phone number and password are required"})
 	}
 
+	if len(password) < 6 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Password must be at least 6 characters long"})
+	}
+
 	collection := database.GetCollection("users")
 	var existingUser models.User
 	err := collection.FindOne(context.Background(), bson.M{"phone_number": phone}).Decode(&existingUser)
@@ -105,3 +109,15 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		"user":  user,
 	})
 }
+
+func (h *AuthHandler) GetMe(c fiber.Ctx) error {
+	userID := c.Locals("user_id").(bson.ObjectID)
+	collection := database.GetCollection("users")
+	var user models.User
+	err := collection.FindOne(context.Background(), bson.M{"_id": userID}).Decode(&user)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+	}
+	return c.JSON(user)
+}
+
