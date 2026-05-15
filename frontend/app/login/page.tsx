@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
 import Image from 'next/image';
-import { Phone, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Phone, Lock, User, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
+  const [phoneWarning, setPhoneWarning] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,6 +23,30 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     setSuccess('');
+
+    if (!isLogin && !displayName.trim()) {
+      setError('กรุณากรอกชื่อที่แสดง');
+      setLoading(false);
+      return;
+    }
+
+    if (!phone) {
+      setError('กรุณากรอกเบอร์โทรศัพท์');
+      setLoading(false);
+      return;
+    }
+
+    if (phone.length !== 10) {
+      setError('ต้องกรอกเบอร์โทรศัพท์ให้ครบ 10 ตัว');
+      setLoading(false);
+      return;
+    }
+
+    if (!password) {
+      setError('กรุณากรอกรหัสผ่าน');
+      setLoading(false);
+      return;
+    }
 
     try {
       if (isLogin) {
@@ -91,7 +116,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {!isLogin && (
             <div className="space-y-1.5 animate-fade-in">
               <label className="text-[12px] font-bold text-zinc-500 ml-1">ชื่อที่แสดง</label>
@@ -112,16 +137,40 @@ export default function LoginPage() {
           <div className="space-y-1.5">
             <label className="text-[12px] font-bold text-zinc-500 ml-1">เบอร์โทรศัพท์</label>
             <div className="relative group">
-              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-400 group-focus-within:text-[var(--brand)] transition-colors" />
+              <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] transition-colors ${phoneWarning ? 'text-red-400' : 'text-zinc-400 group-focus-within:text-[var(--brand)]'}`} />
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 bg-zinc-50/50 border border-zinc-200/80 rounded-xl focus:bg-white focus:ring-4 focus:ring-[var(--brand)]/10 focus:border-[var(--brand)]/30 outline-none transition-all text-[14px] font-medium placeholder:text-zinc-400 placeholder:font-normal"
+                onBlur={() => {
+                  if (phone.length > 0 && phone.length < 10) {
+                    setPhoneWarning('ต้องกรอกเบอร์โทรศัพท์ให้ครบ 10 ตัว');
+                  }
+                }}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  if (val.length > 10) {
+                    setPhoneWarning('เบอร์โทรศัพท์สามารถกรอกได้ 10 ตัวเท่านั้น');
+                    setTimeout(() => setPhoneWarning(''), 2500);
+                  } else {
+                    setPhoneWarning('');
+                  }
+                  setPhone(val.slice(0, 10));
+                }}
+                className={`w-full pl-11 pr-4 py-3.5 bg-zinc-50/50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all text-[14px] font-medium placeholder:text-zinc-400 placeholder:font-normal ${
+                  phoneWarning 
+                    ? 'border-red-300 focus:ring-red-500/10 focus:border-red-400 text-red-600' 
+                    : 'border-zinc-200/80 focus:ring-[var(--brand)]/10 focus:border-[var(--brand)]/30'
+                }`}
                 placeholder="08xxxxxxxx"
                 required
               />
             </div>
+            {phoneWarning && (
+              <p className="text-[11px] font-bold text-red-500 ml-2 animate-fade-in flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {phoneWarning}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">

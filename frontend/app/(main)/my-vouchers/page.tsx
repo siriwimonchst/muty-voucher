@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Clock, Ticket, Scissors, CheckCircle2, AlertCircle, Search, X } from 'lucide-react';
 import { getFullImageUrl } from '@/lib/utils';
 import { fetchAPI } from '@/lib/api';
@@ -9,6 +10,7 @@ import Toast from '@/components/Toast';
 import VoucherDetailModal from '@/components/VoucherDetailModal';
 
 export default function MyVouchersPage() {
+  const router = useRouter();
   const [userVouchers, setUserVouchers] = useState<UserVoucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'AVAILABLE' | 'USED' | 'EXPIRED'>('AVAILABLE');
@@ -275,12 +277,14 @@ export default function MyVouchersPage() {
             </div>
             <h3 className="font-bold text-zinc-900 text-[15px] mb-1">ยังไม่มีคูปอง</h3>
             <p className="text-zinc-400 text-[13px] mb-6">คุณยังไม่มีคูปองที่ {filter === 'AVAILABLE' ? 'พร้อมใช้งาน' : filter === 'USED' ? 'ใช้แล้ว' : 'หมดอายุ'}</p>
-            <button 
-              onClick={() => window.location.href = '/home'}
-              className="px-6 py-3 bg-gradient-to-r from-[var(--brand)] to-[var(--brand-dark)] text-white font-bold text-[13px] rounded-xl shadow-[0_4px_16px_rgba(218,25,132,0.3)] active:scale-95 transition-transform"
-            >
-              ไปเก็บคูปองกันเลย!
-            </button>
+            {filter === 'AVAILABLE' && (
+              <button 
+                onClick={() => router.push('/home')}
+                className="px-6 py-3 bg-gradient-to-r from-[var(--brand)] to-[var(--brand-dark)] text-white font-bold text-[13px] rounded-xl shadow-[0_4px_16px_rgba(218,25,132,0.3)] active:scale-95 transition-transform"
+              >
+                ไปเก็บคูปองกันเลย!
+              </button>
+            )}
           </div>
         )}
       </div>
