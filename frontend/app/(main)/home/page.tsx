@@ -2,21 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
-import { Voucher } from '@/types';
+import { Voucher, UserVoucher } from '@/types';
 import VoucherCard from '@/components/VoucherCard';
-import { Search, Plus, Sparkles } from 'lucide-react';
+import VoucherDetailModal from '@/components/VoucherDetailModal';
+import { Search, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Toast from '@/components/Toast';
+
+const BANNERS = [
+  "/assets/banner_muty4.jpg",
+  "/assets/banner_muty5.jpg",
+];
 
 export default function HomePage() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [claimedIds, setClaimedIds] = useState<string[]>([]);
-  const [error, setError] = useState('');
+  const [userVouchers, setUserVouchers] = useState<UserVoucher[]>([]);
   const [user, setUser] = useState<any>(null);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [dragStart, setDragStart] = useState(0);
+  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error'}>({
     show: false,
     message: '',
@@ -28,14 +34,9 @@ export default function HomePage() {
     setToast({ show: true, message, type });
   };
 
-  const banners = [
-    "/assets/banner_muty4.jpg",
-    "/assets/banner_muty5.jpg"
-  ];
-
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentBanner((prev) => (prev + 1) % banners.length);
+      setCurrentBanner((prev) => (prev + 1) % BANNERS.length);
     }, 5000);
     return () => clearInterval(timer);
   }, []);
@@ -50,24 +51,29 @@ export default function HomePage() {
     const diff = dragStart - posX;
 
     if (diff > 50) {
-      setCurrentBanner((prev) => (prev + 1) % banners.length);
+      setCurrentBanner((prev) => (prev + 1) % BANNERS.length);
     } else if (diff < -50) {
-      setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
+      setCurrentBanner((prev) => (prev - 1 + BANNERS.length) % BANNERS.length);
     }
   };
 
   useEffect(() => {
-    loadVouchers();
     loadUserProfile();
     loadClaimedVouchers();
   }, []);
 
+  // Real-time search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadVouchers(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const loadClaimedVouchers = async () => {
     try {
       const data = await fetchAPI('/my-vouchers');
-      // Extract voucher IDs from user vouchers
-      const ids = data.map((uv: any) => uv.voucher_id);
-      setClaimedIds(ids);
+      setUserVouchers(data);
     } catch (err) {
       console.error('Failed to load claimed vouchers:', err);
     }
@@ -78,35 +84,27 @@ export default function HomePage() {
       const userData = await fetchAPI('/auth/me');
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
-    } catch (err) {
-      // Fallback to local storage if API fails
+    } catch {
       const localUser = localStorage.getItem('user');
       if (localUser) setUser(JSON.parse(localUser));
     }
   };
-
 
   const loadVouchers = async (searchQuery = '') => {
     try {
       const data = await fetchAPI(`/vouchers?search=${searchQuery}`);
       setVouchers(data);
     } catch (err: any) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    loadVouchers(search);
-  };
-
   const handleClaim = async (id: string) => {
     try {
       await fetchAPI(`/vouchers/${id}/claim`, { method: 'POST' });
-      setClaimedIds([...claimedIds, id]);
-      // Reload to update counts
+      await loadClaimedVouchers();
       loadVouchers(search);
       showToast('เก็บคูปองสำเร็จ! ไปดูที่หน้า คูปองของฉัน', 'success');
     } catch (err: any) {
@@ -114,7 +112,8 @@ export default function HomePage() {
         'Voucher already claimed': 'คุณเก็บคูปองนี้ไปแล้ว',
         'Voucher quota exceeded': 'คูปองนี้ถูกเก็บจนครบโควตาแล้ว',
         'Voucher expired': 'คูปองนี้หมดอายุแล้ว',
-        'Failed to claim voucher': 'เกิดข้อผิดพลาดในการเก็บคูปอง'
+        'Failed to claim voucher': 'เกิดข้อผิดพลาดในการเก็บคูปอง',
+        'Voucher is not available or quota is full': 'คูปองนี้ถูกเก็บจนครบโควตาแล้ว หรือหมดเวลาแจก',
       };
       showToast(errorMap[err.message] || err.message, 'error');
     }
@@ -136,7 +135,7 @@ export default function HomePage() {
             className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] h-full"
             style={{ transform: `translateX(-${currentBanner * 100}%)` }}
           >
-            {banners.map((banner, index) => (
+            {BANNERS.map((banner, index) => (
               <div key={index} className="min-w-full h-full relative">
                 <img
                   src={banner}
@@ -152,7 +151,7 @@ export default function HomePage() {
 
           {/* Pagination Dots */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {banners.map((_, i) => (
+            {BANNERS.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrentBanner(i)}
@@ -179,20 +178,26 @@ export default function HomePage() {
               placeholder="ค้นหาคูปอง..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), loadVouchers(search))}
-              className="w-full bg-transparent outline-none text-zinc-900 text-[14px] placeholder:text-zinc-400 font-medium"
+              onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+              className="w-full bg-transparent outline-none text-zinc-900 text-[14px] placeholder:text-zinc-400 font-medium pr-8"
             />
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  loadVouchers('');
+                }}
+                className="absolute right-4 p-1 rounded-full hover:bg-zinc-100 text-zinc-400 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Section Header */}
         <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-extrabold text-zinc-900 tracking-tight leading-tight">คูปองทั้งหมด</h2>
-            </div>
-            {/* Removed New badge */}
-          </div>
+          <h2 className="text-lg font-extrabold text-zinc-900 tracking-tight leading-tight">คูปองทั้งหมด</h2>
         </div>
 
         {/* Voucher List */}
@@ -204,18 +209,44 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="space-y-3 stagger">
-            {vouchers.map((v) => (
-              <VoucherCard
-                key={v.id}
-                voucher={v}
-                onClaim={handleClaim}
-                isClaimed={claimedIds.includes(v.id)}
-                isAdmin={user?.role === 'admin'}
-              />
-            ))}
+            {vouchers.map((v) => {
+              const userVoucher = userVouchers.find(uv => uv.voucher_id === v.id);
+              return (
+                <div key={v.id} onClick={() => setSelectedVoucher(v)}>
+                  <VoucherCard
+                    voucher={v}
+                    onClaim={handleClaim}
+                    isClaimed={!!userVoucher}
+                    isAdmin={user?.role === 'admin'}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Voucher Detail Modal */}
+      {selectedVoucher && (() => {
+        const userVoucher = userVouchers.find(uv => uv.voucher_id === selectedVoucher.id);
+        const isClaimed = !!userVoucher;
+
+        return (
+          <VoucherDetailModal
+            voucher={selectedVoucher}
+            isOpen={!!selectedVoucher}
+            onClose={() => setSelectedVoucher(null)}
+            actionText={isClaimed ? 'เก็บแล้ว' : 'เก็บคูปอง'}
+            onAction={(id) => {
+              if (!isClaimed) {
+                handleClaim(id);
+              }
+            }}
+            isActionDisabled={isClaimed}
+            statusText={isClaimed ? 'เก็บแล้ว' : 'เก็บคูปอง'}
+          />
+        );
+      })()}
 
       {/* Admin Floating Action Button */}
       {user?.role === 'admin' && (
@@ -230,11 +261,11 @@ export default function HomePage() {
         </div>
       )}
 
-      <Toast 
-        show={toast.show} 
-        message={toast.message} 
-        type={toast.type} 
-        onClose={() => setToast(prev => ({ ...prev, show: false }))} 
+      <Toast
+        show={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
       />
     </div>
   );

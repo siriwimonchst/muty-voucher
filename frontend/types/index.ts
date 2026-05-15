@@ -11,7 +11,6 @@ export interface Voucher {
   title: string;
   description: string;
   shop_name: string;
-  category: string;
   discount_type: 'percent' | 'fixed' | 'freebie';
   discount_value: number;
   total_quota: number;
@@ -21,6 +20,8 @@ export interface Voucher {
   valid_until: string;
   image_url: string;
   is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserVoucher {

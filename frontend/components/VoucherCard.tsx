@@ -26,20 +26,20 @@ export default function VoucherCard({ voucher, onClaim, isClaimed, isAdmin }: Vo
     const end = new Date(voucher.claim_end_time).getTime();
     const diff = end - now;
 
-    if (diff > 0 && diff < 48 * 60 * 60 * 1000) {
+    if (diff > 0 && diff < 7 * 24 * 60 * 60 * 1000) {
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       
       return (
-        <span className="text-[var(--brand)] font-bold">
-          สิ้นสุดการแจกในอีก {days > 0 ? `${days} วัน ` : ''}{hours > 0 || days > 0 ? `${hours} ชม.` : `${mins} นาที`}
+        <span className="font-medium">
+          สิ้นสุดในอีก {days > 0 ? `${days} วัน ` : ''}{hours > 0 || days > 0 ? `${hours} ชม.` : `${mins} นาที`}
         </span>
       );
     } else if (diff <= 0) {
       return 'หมดเวลาแจกแล้ว';
     }
-    return `สิ้นสุดการแจก ${new Date(voucher.claim_end_time).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} เวลา ${new Date(voucher.claim_end_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.`;
+    return `สิ้นสุด ${new Date(voucher.claim_end_time).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} ${new Date(voucher.claim_end_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
   };
 
   const isExpiringSoon = () => {
@@ -68,13 +68,13 @@ export default function VoucherCard({ voucher, onClaim, isClaimed, isAdmin }: Vo
         </div>
 
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-[10px]">
-            <div className={`flex items-center gap-1 ${isExpiringSoon() ? 'text-[var(--brand)]' : 'text-zinc-400'}`}>
-              <Clock className="w-3 h-3" />
-              <span className="truncate">{getClaimEndText()}</span>
+          <div className="flex items-center justify-between text-[10px] gap-2">
+            <div className="flex items-center gap-1 min-w-0 text-zinc-400">
+              <Clock className="w-3 h-3 shrink-0" />
+              <span className="truncate block">{getClaimEndText()}</span>
             </div>
             {isAdmin && !isUnlimited && (
-               <span className={`font-bold shrink-0 ${remaining <= 5 ? 'text-[var(--brand)] animate-pulse' : 'text-zinc-300'}`}>
+               <span className="font-medium text-zinc-400 shrink-0">
                  เหลือ {remaining}
                </span>
             )}
@@ -96,7 +96,10 @@ export default function VoucherCard({ voucher, onClaim, isClaimed, isAdmin }: Vo
 
       {/* Right: Claim Action Section */}
       <button
-        onClick={() => onClaim && onClaim(voucher.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClaim && onClaim(voucher.id);
+        }}
         disabled={isClaimed || remaining === 0}
         className={`w-[58px] flex flex-col items-center justify-center gap-1 transition-all shrink-0 ${
           isClaimed || remaining === 0

@@ -178,7 +178,6 @@ func (h *AuthHandler) UpdateProfile(c fiber.Ctx) error {
 	}
 
 	if err := c.Bind().JSON(&req); err != nil {
-		fmt.Printf("UpdateProfile bind error: %v\n", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
@@ -209,7 +208,7 @@ func (h *AuthHandler) UpdateProfile(c fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found for update"})
 	}
 
-	fmt.Printf("Profile updated for user %s: Name=%s, Picture=%s\n", userID.Hex(), displayName, profilePictureURL)
+	fmt.Printf("Profile updated for user: %s\n", userID.Hex())
 
 	// Fetch updated user to return
 	var updatedUser models.User
@@ -224,13 +223,11 @@ func (h *AuthHandler) UpdateProfile(c fiber.Ctx) error {
 func (h *AuthHandler) Upload(c fiber.Ctx) error {
 	file, err := c.FormFile("image")
 	if err != nil {
-		fmt.Printf("Upload FormFile error: %v\n", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to get file"})
 	}
 
 	// Ensure uploads directory exists
 	if err := os.MkdirAll("uploads", 0755); err != nil {
-		fmt.Printf("Upload MkdirAll error: %v\n", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create uploads directory"})
 	}
 
@@ -240,13 +237,11 @@ func (h *AuthHandler) Upload(c fiber.Ctx) error {
 	savePath := filepath.Join("uploads", filename)
 
 	if err := c.SaveFile(file, savePath); err != nil {
-		fmt.Printf("Upload SaveFile error: %v\n", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save file"})
 	}
 
 	// Return the relative URL
 	url := fmt.Sprintf("/uploads/%s", filename)
-	fmt.Printf("File uploaded successfully: %s\n", url)
 
 	return c.JSON(fiber.Map{
 		"url": url,

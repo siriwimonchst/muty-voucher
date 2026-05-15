@@ -22,7 +22,6 @@ type Voucher struct {
 	Title          string        `bson:"title" json:"title"`
 	Description    string        `bson:"description" json:"description"`
 	ShopName       string        `bson:"shop_name" json:"shop_name"`
-	Category       string        `bson:"category" json:"category"`
 	DiscountType   string        `bson:"discount_type" json:"discount_type"` // "percent" | "fixed" | "freebie"
 	DiscountValue  float64       `bson:"discount_value" json:"discount_value"`
 	TotalQuota     int           `bson:"total_quota" json:"total_quota"`

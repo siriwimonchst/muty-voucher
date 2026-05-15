@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Clock, Ticket, Scissors, CheckCircle2, AlertCircle, Search, X } from 'lucide-react';
 import { getFullImageUrl } from '@/lib/utils';
 import { fetchAPI } from '@/lib/api';
-import { UserVoucher } from '@/types';
+import { UserVoucher, Voucher } from '@/types';
 import Toast from '@/components/Toast';
+import VoucherDetailModal from '@/components/VoucherDetailModal';
 
 export default function MyVouchersPage() {
   const [userVouchers, setUserVouchers] = useState<UserVoucher[]>([]);
@@ -13,6 +14,7 @@ export default function MyVouchersPage() {
   const [filter, setFilter] = useState<'AVAILABLE' | 'USED' | 'EXPIRED'>('AVAILABLE');
   const [search, setSearch] = useState('');
   const [now, setNow] = useState(new Date().getTime());
+  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
 
   const [confirmModal, setConfirmModal] = useState<{show: boolean, voucherId: string | null}>({
     show: false,
@@ -38,14 +40,14 @@ export default function MyVouchersPage() {
     const end = new Date(validUntil).getTime();
     const diff = end - now;
 
-    if (diff > 0 && diff < 48 * 60 * 60 * 1000) {
+    if (diff > 0 && diff < 7 * 24 * 60 * 60 * 1000) {
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       
       return (
-        <span className="text-[var(--brand)] font-bold">
-          จะหมดอายุในอีก {days > 0 ? `${days} วัน ` : ''}{hours > 0 || days > 0 ? `${hours} ชม.` : `${mins} นาที`}
+        <span className="font-medium">
+          หมดอายุในอีก {days > 0 ? `${days} วัน ` : ''}{hours > 0 || days > 0 ? `${hours} ชม.` : `${mins} นาที`}
         </span>
       );
     }
@@ -53,8 +55,8 @@ export default function MyVouchersPage() {
     return (
       <>
         หมดอายุ {new Date(validUntil).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} 
-        <span className="ml-1 opacity-70">
-          เวลา {new Date(validUntil).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.
+        <span className="ml-1 opacity-60">
+          {new Date(validUntil).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })}
         </span>
       </>
     );
@@ -78,11 +80,13 @@ export default function MyVouchersPage() {
   };
 
   const handleUseVoucher = async () => {
-    if (!confirmModal.voucherId) return;
+    const vId = confirmModal.voucherId || selectedVoucher?.id;
+    if (!vId) return;
     
     try {
-      await fetchAPI(`/my-vouchers/${confirmModal.voucherId}/use`, { method: 'POST' });
+      await fetchAPI(`/my-vouchers/${vId}/use`, { method: 'POST' });
       setConfirmModal({ show: false, voucherId: null });
+      setSelectedVoucher(null);
       showToast('ใช้งานคูปองสำเร็จ!', 'success');
       await loadMyVouchers();
       setFilter('USED');
@@ -111,6 +115,20 @@ export default function MyVouchersPage() {
     const matchesSearch = uv.voucher_details.title.toLowerCase().includes(search.toLowerCase()) || 
                           uv.voucher_details.shop_name.toLowerCase().includes(search.toLowerCase());
     return matchesStatus && matchesSearch;
+  }).sort((a, b) => {
+    if (filter === 'USED') {
+      const aTime = a.used_at ? new Date(a.used_at).getTime() : 0;
+      const bTime = b.used_at ? new Date(b.used_at).getTime() : 0;
+      return bTime - aTime; // sort descending
+    } else if (filter === 'AVAILABLE') {
+      const aTime = a.voucher_details?.valid_until ? new Date(a.voucher_details.valid_until).getTime() : Infinity;
+      const bTime = b.voucher_details?.valid_until ? new Date(b.voucher_details.valid_until).getTime() : Infinity;
+      return aTime - bTime; // sort ascending (expiring soonest first)
+    } else {
+      const aTime = a.claimed_at ? new Date(a.claimed_at).getTime() : 0;
+      const bTime = b.claimed_at ? new Date(b.claimed_at).getTime() : 0;
+      return bTime - aTime; // sort descending
+    }
   });
 
   const tabCounts = {
@@ -156,9 +174,17 @@ export default function MyVouchersPage() {
             placeholder="ค้นหาคูปองของคุณ..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-zinc-100 rounded-xl focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/30 outline-none transition-all shadow-[0_1px_4px_rgba(0,0,0,0.04)] text-[13px]"
+            className="w-full pl-10 pr-10 py-2.5 bg-white border border-zinc-100 rounded-xl focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/30 outline-none transition-all shadow-[0_1px_4px_rgba(0,0,0,0.04)] text-[13px]"
           />
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-100 text-zinc-400 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -170,7 +196,8 @@ export default function MyVouchersPage() {
             {filteredVouchers.map((uv, index) => (
               <div 
                 key={uv.id || (uv as any)._id}
-                className={`flex h-[88px] bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden group transition-all duration-300 animate-scale-in ${
+                onClick={() => setSelectedVoucher(uv.voucher_details)}
+                className={`flex h-[88px] bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden group transition-all duration-300 animate-scale-in cursor-pointer ${
                   getEffectiveStatus(uv) !== 'AVAILABLE' ? 'grayscale opacity-60' : ''
                 }`}
               >
@@ -191,9 +218,9 @@ export default function MyVouchersPage() {
                     </h3>
                   </div>
 
-                  <div className={`flex items-center text-[10px] gap-1 ${isExpiringSoon(uv.voucher_details.valid_until) && uv.status === 'AVAILABLE' ? 'text-[var(--brand)]' : 'text-zinc-400'}`}>
-                    <Clock className="w-3 h-3" />
-                    <span className="truncate">
+                  <div className="flex items-center text-[10px] gap-1 min-w-0 text-zinc-400">
+                    <Clock className="w-3 h-3 shrink-0" />
+                    <span className="truncate block">
                       {uv.status === 'USED' && uv.used_at ? (
                         <>ใช้เมื่อ {new Date(uv.used_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} เวลา {new Date(uv.used_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false })} น.</>
                       ) : (
@@ -208,7 +235,12 @@ export default function MyVouchersPage() {
 
                 {/* Right: Action Section */}
                 <button
-                  onClick={() => getEffectiveStatus(uv) === 'AVAILABLE' && setConfirmModal({ show: true, voucherId: uv.id || (uv as any)._id })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (getEffectiveStatus(uv) === 'AVAILABLE') {
+                      setConfirmModal({ show: true, voucherId: uv.id || (uv as any)._id });
+                    }
+                  }}
                   disabled={getEffectiveStatus(uv) !== 'AVAILABLE'}
                   className={`w-[58px] flex flex-col items-center justify-center gap-1 transition-all shrink-0 ${
                     getEffectiveStatus(uv) === 'AVAILABLE'
@@ -255,7 +287,7 @@ export default function MyVouchersPage() {
 
       {/* Custom Confirmation Modal */}
       {confirmModal.show && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setConfirmModal({ show: false, voucherId: null })}>
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setConfirmModal({ show: false, voucherId: null })}>
           <div className="bg-white rounded-t-[28px] w-full max-w-[480px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
             {/* Handle bar */}
             <div className="w-10 h-1 bg-zinc-200 rounded-full mx-auto mb-6" />
@@ -284,6 +316,34 @@ export default function MyVouchersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedVoucher && (
+        <VoucherDetailModal
+          voucher={selectedVoucher}
+          isOpen={!!selectedVoucher}
+          onClose={() => setSelectedVoucher(null)}
+          actionText="ใช้คูปอง"
+          onAction={() => {
+            const uv = userVouchers.find(u => u.voucher_details.id === selectedVoucher.id);
+            if (uv) {
+              setConfirmModal({ show: true, voucherId: uv.id || (uv as any)._id });
+            }
+          }}
+          isActionDisabled={(() => {
+            const uv = userVouchers.find(u => u.voucher_details.id === selectedVoucher.id);
+            return uv ? getEffectiveStatus(uv) !== 'AVAILABLE' : true;
+          })()}
+          statusText={(() => {
+            const uv = userVouchers.find(u => u.voucher_details.id === selectedVoucher.id);
+            if (!uv) return 'ใช้คูปอง';
+            const effStatus = getEffectiveStatus(uv);
+            if (effStatus === 'USED') return 'ใช้งานแล้ว';
+            if (effStatus === 'EXPIRED') return 'หมดอายุแล้ว';
+            return 'ใช้คูปอง';
+          })()}
+        />
       )}
 
       <Toast 
